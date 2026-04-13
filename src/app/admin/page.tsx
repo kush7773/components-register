@@ -95,6 +95,44 @@ export default function AdminDashboard() {
   const checkedOut = totalItems - totalAvail;
   const lostCount = transactions.filter(t => t.action === "LOST").reduce((s, t) => s + t.quantity, 0);
 
+  const exportCSV = (data: any[], filename: string, headers: string[]) => {
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+    
+    data.forEach(row => {
+      const values = headers.map(header => {
+        let val = '';
+        const hKey = header.toLowerCase();
+        
+        if (header === "Employee") val = row.user?.username;
+        else if (header === "Component") val = row.component?.name || row.name;
+        else if (header === "Time") val = new Date(row.timestamp).toLocaleString();
+        else if (header === "Status") val = row.availableQuantity > 0 ? "In Stock" : "Depleted";
+        else if (header === "Borrowed") val = String(row.totalQuantity - row.availableQuantity);
+        else if (header === "In Use") val = String(row.totalQuantity - row.availableQuantity);
+        else if (header === "Name") val = row.name;
+        else if (row[hKey] !== undefined) val = String(row[hKey]);
+        else if (row[header.charAt(0).toLowerCase() + header.slice(1)] !== undefined) 
+           val = String(row[header.charAt(0).toLowerCase() + header.slice(1)]);
+        
+        const escaped = ('' + (val || '')).replace(/"/g, '""');
+        return `"${escaped}"`;
+      });
+      csvRows.push(values.join(','));
+    });
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `${filename}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <Navbar role="ADMIN" />
@@ -178,9 +216,17 @@ export default function AdminDashboard() {
 
           {/* Inventory table */}
           <div className="card-flush">
-            <div className="card-header">
-              <h3 className="card-title">Inventory Overview</h3>
-              <p className="card-desc">Real-time stock levels</p>
+            <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h3 className="card-title">Inventory Overview</h3>
+                <p className="card-desc">Real-time stock levels</p>
+              </div>
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={() => exportCSV(components, 'inventory', ['Name', 'TotalQuantity', 'AvailableQuantity', 'In Use', 'Status'])}
+              >
+                Export CSV
+              </button>
             </div>
             <table className="table">
               <thead>
@@ -269,6 +315,13 @@ export default function AdminDashboard() {
               <p className="card-desc">Complete log of all inventory movements</p>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
+              <button 
+                className="btn btn-secondary btn-sm"
+                style={{ marginRight: 8 }}
+                onClick={() => exportCSV(transactions.filter(t => auditFilter === "ALL" || t.action === auditFilter), 'audit_logs', ['Time', 'Employee', 'Component', 'Action', 'Quantity'])}
+              >
+                Export CSV
+              </button>
               {(["ALL", "BORROW", "RETURN", "LOST"] as const).map((f) => (
                 <button
                   key={f}
