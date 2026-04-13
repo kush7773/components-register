@@ -27,6 +27,7 @@ export default function ManageUsersPage() {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("EMPLOYEE");
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -67,6 +68,27 @@ export default function ManageUsersPage() {
       setError(err.message);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDelete = async (u: User) => {
+    if (!confirm(`Delete "${u.username}"? This will also remove their transaction history.`)) return;
+    setDeletingId(u.id);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: u.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setSuccess(`"${u.username}" has been removed`);
+      fetchUsers();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -178,6 +200,7 @@ export default function ManageUsersPage() {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Activity</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -194,10 +217,19 @@ export default function ManageUsersPage() {
                       </span>
                     </td>
                     <td>{u._count.transactions} txns</td>
+                    <td>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        disabled={deletingId === u.id}
+                        onClick={() => handleDelete(u)}
+                      >
+                        {deletingId === u.id ? <span className="spinner" /> : "Delete"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {users.length === 0 && (
-                  <tr><td colSpan={5} className="table-empty">No users found</td></tr>
+                  <tr><td colSpan={6} className="table-empty">No users found</td></tr>
                 )}
               </tbody>
             </table>

@@ -42,6 +42,7 @@ export default function AdminDashboard() {
   const [editDesc, setEditDesc] = useState("");
   const [editQty, setEditQty] = useState("");
   const [editing, setEditing] = useState(false);
+  const [deletingCompId, setDeletingCompId] = useState<number | null>(null);
 
   const fetchData = async () => {
     try {
@@ -207,20 +208,48 @@ export default function AdminDashboard() {
                       )}
                     </td>
                     <td>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          setEditId(c.id);
-                          setEditName(c.name);
-                          setEditDesc(c.description || "");
-                          setEditQty(String(c.totalQuantity));
-                          setEditModal(true);
-                          setError("");
-                          setSuccess("");
-                        }}
-                      >
-                        Edit
-                      </button>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setEditId(c.id);
+                            setEditName(c.name);
+                            setEditDesc(c.description || "");
+                            setEditQty(String(c.totalQuantity));
+                            setEditModal(true);
+                            setError("");
+                            setSuccess("");
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          disabled={deletingCompId === c.id}
+                          onClick={async () => {
+                            if (!confirm(`Delete "${c.name}"? This will remove all its transaction history too.`)) return;
+                            setDeletingCompId(c.id);
+                            setError("");
+                            try {
+                              const res = await fetch("/api/components", {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: c.id }),
+                              });
+                              const data = await res.json();
+                              if (!res.ok) throw new Error(data.error);
+                              setSuccess(`"${c.name}" deleted`);
+                              fetchData();
+                            } catch (err: any) {
+                              setError(err.message);
+                            } finally {
+                              setDeletingCompId(null);
+                            }
+                          }}
+                        >
+                          {deletingCompId === c.id ? <span className="spinner" /> : "Delete"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

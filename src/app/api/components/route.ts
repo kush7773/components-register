@@ -83,3 +83,24 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'Failed to update component' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await verifySession();
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: 'Component ID required' }, { status: 400 });
+
+    // Delete related transactions first, then the component
+    await prisma.transaction.deleteMany({ where: { componentId: parseInt(id) } });
+    await prisma.component.delete({ where: { id: parseInt(id) } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete component error:', error);
+    return NextResponse.json({ error: 'Failed to delete component' }, { status: 500 });
+  }
+}

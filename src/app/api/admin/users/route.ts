@@ -83,3 +83,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await verifySession();
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+
+    // Prevent deleting yourself
+    if (parseInt(id) === session.userId) {
+      return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 });
+    }
+
+    // Delete user's transactions first, then user
+    await prisma.transaction.deleteMany({ where: { userId: parseInt(id) } });
+    await prisma.user.delete({ where: { id: parseInt(id) } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+  }
+}
