@@ -30,17 +30,28 @@ export async function POST(req: Request) {
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const resetUrl = `${protocol}://${host}/reset-password?token=${resetToken}`;
 
-    // Try sending via Resend
-    const resendKey = process.env.RESEND_API_KEY;
+    // Try sending via Nodemailer if SMTP is configured
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
     let emailSent = false;
 
-    if (resendKey) {
+    if (smtpHost && smtpUser && smtpPass) {
       try {
-        const { Resend } = await import('resend');
-        const resend = new Resend(resendKey);
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        });
 
-        await resend.emails.send({
-          from: 'Robomanthan <onboarding@resend.dev>',
+        await transporter.sendMail({
+          from: `"Robomanthan" <${smtpUser}>`,
           to: email,
           subject: 'Reset Your Robomanthan Password',
           html: `
@@ -59,7 +70,7 @@ export async function POST(req: Request) {
         emailSent = true;
         console.log(`[RESET] Email sent to ${email}`);
       } catch (emailErr) {
-        console.error('[RESET] Resend email failed:', emailErr);
+        console.error('[RESET] SMTP email failed:', emailErr);
       }
     }
 

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { verifySession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
+export const dynamic = 'force-dynamic';
+
 // GET all users (admin only)
 export async function GET() {
   try {
